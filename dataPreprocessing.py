@@ -10,7 +10,7 @@ nlp = English()
 PADDING_VALUE = 0
 UNK_VALUE     = 1
 
-class HeadlineDataset(Dataset):
+class ReviewDataset(Dataset):
   """
   This class takes a Pandas DataFrame and wraps in a PyTorch Dataset.
   Read more about Torch Datasets here:
