@@ -100,6 +100,7 @@ def load_data(path, file_list, dataset, encoding='utf8'):
         with open(os.path.join(path, file), 'r', encoding=encoding) as text:
             dataset.append(text.read())
 
+#Cleaning Reviews
 def spec_add_spaces(t: str) -> str:
     "Add spaces around / and # in `t`. \n"
     return re.sub(r"([/#\n])", r" \1 ", t)
@@ -140,6 +141,9 @@ def clean_text(input_text):
     return text
 
 def tokenize(review):
+    """
+    This method take a text review and returns token 
+    """
     return [token.text for token in nlp.tokenizer(review)]
 
 def generate_vocab_map(df, cutoff=2):
