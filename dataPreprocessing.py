@@ -5,95 +5,21 @@ import torch
 from spacy.lang.en import English
 from collections import Counter
 from torch.utils.data import Dataset
+from torch.nn.utils.rnn import pad_sequence
 
 nlp = English()
 PADDING_VALUE = 0
 UNK_VALUE     = 1
 
-class ReviewDataset(Dataset):
-  """
-  This class takes a Pandas DataFrame and wraps in a PyTorch Dataset.
-  Read more about Torch Datasets here:
-  https://pytorch.org/tutorials/beginner/basics/data_tutorial.html
-  """
-
-  def __init__(self, vocab, df, max_length=50):
-    """
-    Initialize this class with appropriate instance variables
-
-    We would *strongly* recommend storing the dataframe itself as an instance
-    variable, and keeping this method very simple. Leave processing to
-    __getitem__.
-
-    Sometimes, however, it does make sense to preprocess in __init__. If you
-    are curious as to why, read the aside at the bottom of this cell.
-    """
-
-    self.df = df
-    self.vocab = vocab
-    self.max_length = max_length
-
-  def __len__(self):
-    """
-    Return the length of the dataframe instance variable
-    """
-
-    df_len = len(self.df)
-
-    return df_len
-
-  def __getitem__(self, index: int):
-    """
-    Converts a dataframe row (row["tokenized"]) to an encoded torch LongTensor,
-    using our vocab map created using generate_vocab_map. Restricts the encoded
-    headline length to max_length.
-
-    The purpose of this method is to convert the row - a list of words - into
-    a corresponding list of numbers.
-
-    i.e. using a map of {"hi": 2, "hello": 3, "UNK": 0}
-    this list ["hi", "hello", "NOT_IN_DICT"] will turn into [2, 3, 0]
-
-    Returns:
-      tokenized_word_tensor (torch.LongTensor):
-        A 1D tensor of type Long, that has each token in the dataframe mapped to
-        a number. These numbers are retrieved from the vocab_map we created in
-        generate_vocab_map.
-
-        **IMPORTANT**: if we filtered out the word because it's infrequent (and
-        it doesn't exist in the vocab) we need to replace it w/ the UNK token.
-
-      curr_label (int):
-        Binary 0/1 label retrieved from the DataFrame.
-
-    """
-
-    curr_row = self.df.iloc[index]
-    curr_label = curr_row["label"]
-    tokenized_word_list = curr_row["tokenized"]
-    token_indices = [self.vocab.get(token, self.vocab["UNK"]) for token in tokenized_word_list]
-    if len(token_indices) > self.max_length:
-        token_indices = token_indices[:self.max_length]
-    else:
-        token_indices += [self.vocab[""]] * (self.max_length - len(token_indices))
-    tokenized_word_tensor = torch.tensor(token_indices, dtype=torch.long)
-
-    return tokenized_word_tensor, curr_label
-
 
 def load_data(path, file_list, dataset, encoding='utf8'):
     """Read set of files from given directory and save returned lines to list.
     
-    Parameters
-    ----------
-    path : str
-        Absolute or relative path to given file (or set of files).
-    file_list: list
-        List of files names to read.
-    dataset: list
-        List that stores read lines.
-    encoding: str, optional (default='utf8')
-        File encoding.
+    Args:
+      path (str); Absolute or relative path to given file (or set of files).
+      file_list (list): List of files names to read.
+      dataset (list): List that stores read lines.
+      encoding (str, optional) (default='utf8'): File encoding.
         
     """
     for file in file_list:
@@ -172,18 +98,120 @@ def generate_vocab_map(df, cutoff=2):
     """
 
     vocab          = {"": PADDING_VALUE, "UNK": UNK_VALUE}
-    reversed_vocab = None
+    reversed_vocab = {PADDING_VALUE: "", UNK_VALUE: "UNK"}
 
     token_counts = Counter()
     for tokens in df["tokenized"]:
         token_counts.update(tokens)
-    curr_index = 2
+    curr_index =2
     for token, count in token_counts.items():
         if count > cutoff:
             vocab[token] = curr_index
+            reversed_vocab[curr_index]= token
             curr_index += 1
-    reversed_vocab = {index: token for token, index in vocab.items()}
 
     return vocab, reversed_vocab
 
+class ReviewDataset(Dataset):
+  """
+  This class takes a Pandas DataFrame and wraps in a PyTorch Dataset.
+  Read more about Torch Datasets here:
+  https://pytorch.org/tutorials/beginner/basics/data_tutorial.html
+  """
+
+  def __init__(self, vocab, df, max_length=400):
+    """
+    Initialize this class with appropriate instance variables
+
+    We would *strongly* recommend storing the dataframe itself as an instance
+    variable, and keeping this method very simple. Leave processing to
+    __getitem__.
+
+    Sometimes, however, it does make sense to preprocess in __init__. If you
+    are curious as to why, read the aside at the bottom of this cell.
+    """
+
+    self.df = df
+    self.vocab = vocab
+    self.max_length = max_length
+
+  def __len__(self):
+    """
+    Return the length of the dataframe instance variable
+    """
+
+    df_len = len(self.df)
+
+    return df_len
+
+  def __getitem__(self, index: int):
+    """
+    Converts a dataframe row (row["tokenized"]) to an encoded torch LongTensor,
+    using our vocab map created using generate_vocab_map. Restricts the encoded
+    headline length to max_length.
+
+    The purpose of this method is to convert the row - a list of words - into
+    a corresponding list of numbers.
+
+    i.e. using a map of {"hi": 2, "hello": 3, "UNK": 0}
+    this list ["hi", "hello", "NOT_IN_DICT"] will turn into [2, 3, 0]
+
+    Returns:
+      tokenized_word_tensor (torch.LongTensor):
+        A 1D tensor of type Long, that has each token in the dataframe mapped to
+        a number. These numbers are retrieved from the vocab_map we created in
+        generate_vocab_map.
+
+        **IMPORTANT**: if we filtered out the word because it's infrequent (and
+        it doesn't exist in the vocab) we need to replace it w/ the UNK token.
+
+      curr_label (int):
+        Binary 0/1 label retrieved from the DataFrame.
+
+    """
+
+    curr_row = self.df.iloc[index]
+    curr_label = curr_row["label"]
+    tokenized_word_list = curr_row["tokenized"]
+    token_indices = [self.vocab.get(token, self.vocab["UNK"]) for token in tokenized_word_list]
+    if len(token_indices) > self.max_length:
+        token_indices = token_indices[:self.max_length]
+    else:
+        token_indices += [self.vocab[""]] * (self.max_length - len(token_indices))
+    tokenized_word_tensor = torch.LongTensor(token_indices)
+
+    return tokenized_word_tensor, curr_label
+
+def collate_fn(batch, padding_value=PADDING_VALUE):
+  """
+  This function is passed as a parameter to Torch DataSampler. collate_fn collects
+  batched rows, in the form of tuples, from a DataLoader and applies some final
+  pre-processing.
+
+  Objective:
+    In our case, we need to take the batched input array of 1D tokenized_word_tensors,
+    and create a 2D tensor that's padded to be the max length from all our tokenized_word_tensors
+    in a batch. We're moving from a Python array of tuples, to a padded 2D tensor.
+
+    *HINT*: you're allowed to use torch.nn.utils.rnn.pad_sequence (ALREADY IMPORTED)
+
+    Finally, you can read more about collate_fn here: https://pytorch.org/docs/stable/data.html
+
+  Args:
+    batch: PythonArray[tuple(tokenized_word_tensor: 1D Torch.LongTensor, curr_label: int)]
+           len(batch) == BATCH_SIZE
+
+  Returns:
+    padded_tokens: 2D LongTensor of shape (BATCH_SIZE, max len of all tokenized_word_tensor))
+    y_labels: 1D FloatTensor of shape (BATCH_SIZE)
+
+  """
+  padded_tokens, y_labels = None, None
+
+  tokenized_word_tensors = [tup[0] for tup in batch]
+  curr_labels = [tup[1] for tup in batch]
+  y_labels = torch.LongTensor(curr_labels)
+  padded_tokens = pad_sequence(tokenized_word_tensors,batch_first=True, padding_value=padding_value)
+
+  return padded_tokens, y_labels
     
