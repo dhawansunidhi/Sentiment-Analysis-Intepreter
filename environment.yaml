@@ -1,0 +1,17 @@
+name: nlp_project_env
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.8
+  - pandas
+  - pytorch
+  - pip
+  - spacy
+  - tqdm
+  - matplotlib
+  - pip:
+    - html5lib
+    - regex
+pip:
+  - spacy-model-en_core_web_sm
