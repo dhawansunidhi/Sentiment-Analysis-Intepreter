@@ -1,2 +1,0 @@
-model_weights/ksae_latent_activations_a.pt filter=lfs diff=lfs merge=lfs -text
-model_weights/ksae_latent_activations_b.pt filter=lfs diff=lfs merge=lfs -text
