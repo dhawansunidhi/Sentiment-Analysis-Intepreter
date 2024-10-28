@@ -1,2 +1,5 @@
 dataset/
 __pycache__
+ksae_latent_activations_a.pt
+ksae_latent_activations_b.pt
+.DS_Store
